@@ -1,0 +1,12 @@
+# Ignore environment variables
+.env
+
+# Ignore image uploads
+Images/
+uploads/
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
