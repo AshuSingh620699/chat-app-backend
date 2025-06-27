@@ -12,7 +12,6 @@ const dashboardroute = require('./routes/dashboard') // Dashboard Route
 const chatRoomroute = require('./routes/chatRoom') // ChatRoom Route
 const messageRoute = require('./routes/fetchmessage')   // fetching messages
 const userimageroute = require('./routes/user')
-const path = require('path')
 const Message = require('./models/Message')
 require("dotenv").config()
 
@@ -29,10 +28,6 @@ const io = socket(Server, {
 // Middleware
 app.use(cors())
 app.use(express.json())
-
-// static folders
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
-app.use('/Images', express.static(path.join(__dirname, 'Images')))
 
 
 // connecting to mongoDB
