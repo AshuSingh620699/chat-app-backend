@@ -11,7 +11,7 @@ const upload = multer({ storage: storage})
 
 // upload profile image to cloudinary
 router.post('/upload-profile-image', verifytoken, upload.single('image'), async (req, res) => {
-  if(!req.file || !req.file.path) {
+  if(!req.file || (!req.file.path && !req.file.secure_url)) {
     return res.status(400).json({ message: 'No image uploaded or invalid file type' });
   }
 
@@ -21,7 +21,8 @@ router.post('/upload-profile-image', verifytoken, upload.single('image'), async 
       return res.status(404).json({ message: 'User not found' });
     }
     // Upload image to Cloudinary
-    user.profileImage = req.file.path; // Assuming req.file.path contains the Cloudinary URL
+    user.profileImage = req.file.path || req.file.secure_url;
+    
     await user.save();
 
     res.status(200).json({ message: 'Profile image updated', profileImage: user.profileImage });

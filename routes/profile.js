@@ -25,7 +25,10 @@ router.put('/update', verifytoken, async (req, res) => {
 
             user.username = username
         }
-        if (profileImage) user.profileImage = profileImage;
+        if (typeof profileImage === 'string' && profileImage.trim() !== '') {
+            user.profileImage = profileImage;
+        }
+
         if (bio) user.bio = bio;
 
         const updatedUser = await user.save();
