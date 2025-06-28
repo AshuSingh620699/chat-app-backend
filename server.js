@@ -14,13 +14,13 @@ const messageRoute = require('./routes/fetchmessage')   // fetching messages
 const userimageroute = require('./routes/user')
 const Message = require('./models/Message')
 require("dotenv").config()
-
+const User = require('./models/User.js') // Import User model
 const app = express()
 const port = 5050;
 const Server = http.createServer(app)
 const io = socket(Server, {
     cors: {
-        origin: "*",    // Frontend address
+        origin: "https://talkshare.netlify.app",    // Frontend address
         methods: ["GET", "POST"]
     }
 });
@@ -79,16 +79,69 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('register', (userId) => {
+    socket.on('register', async (userId) => {
         userSocketMap[userId] = socket.id;
         console.log(`User ${userId} registered with socket ${socket.id}`);
+
+        // Notify friends that user is online
+        const user = await User.findById(userId);
+        const friendIds = user.friends || [];
+
+        friendIds.forEach(fid => {
+            const friendSocket = userSocketMap[fid.toString()];
+            if (friendSocket) {
+                io.to(friendSocket).emit('user-online', userId);
+            }
+        });
+
+        // ✅ Send online friends to the newly joined user
+        const onlineFriendIds = friendIds.filter(fid => userSocketMap[fid.toString()]);
+        socket.emit('friends-online', onlineFriendIds);
+
+        // Deliver undelivered messages
+        const undeliveredMessages = await Message.find({
+            receiver: userId,
+            status: 'sent'
+        });
+
+        for (const msg of undeliveredMessages) {
+            msg.status = 'delivered';
+            await msg.save();
+
+            const senderSocketId = userSocketMap[msg.sender.toString()];
+            if (senderSocketId) {
+                io.to(senderSocketId).emit('message-delivered', msg._id.toString());
+                // 👇 Also notify them to increment unread
+            }
+            // 👇 Also notify receiver to show the message
+            const receiverSocketId = userSocketMap[userId];
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('receive-message', {
+                    senderId: msg.sender.toString(),
+                    content: msg.content,
+                    timestamp: msg.createdAt,
+                    messageId: msg._id
+                });
+            }
+        }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         for (const [uid, sid] of Object.entries(userSocketMap)) {
             if (sid === socket.id) {
                 delete userSocketMap[uid];
                 console.log(`User ${uid} disconnected`);
+
+                // Notify friends that user is offline
+                // Notify friends
+                User.findById(uid).then(user => {
+                    (user.friends || []).forEach(fid => {
+                        const friendSocket = userSocketMap[fid.toString()];
+                        if (friendSocket) {
+                            io.to(friendSocket).emit('user-offline', uid);
+                        }
+                    });
+                });
                 break;
             }
         }
@@ -141,11 +194,11 @@ io.on('connection', (socket) => {
                 });
 
             }
-                console.log(`Marked ${result.modifiedCount} messages as seen.`);
-            } catch (err) {
-                console.error('Error marking messages as seen:', err.message);
-            }
-        })
+            console.log(`Marked ${result.modifiedCount} messages as seen.`);
+        } catch (err) {
+            console.error('Error marking messages as seen:', err.message);
+        }
+    })
 });
 
 
