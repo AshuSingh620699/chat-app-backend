@@ -16,17 +16,35 @@ const Message = require('./models/Message')
 require("dotenv").config()
 const User = require('./models/User.js') // Import User model
 const app = express()
+
+app.use((req, res, next) => {
+  console.log('Detected IP:', req.ip);
+  next();
+});
+
 const port = 5050;
 const Server = http.createServer(app)
+
+// ✅ Updated CORS options (support both local + deployed frontend)
+const corsOptions = {
+  origin: ['https://talkshare.netlify.app', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 const io = socket(Server, {
     cors: {
-        origin: "https://talkshare.netlify.app",    // Frontend address
+        origin: "*",    // Frontend address
         methods: ["GET", "POST"]
     }
 });
 
+
 // Middleware
-app.use(cors())
+app.use(cors(corsOptions)) // Use the updated CORS options
+app.set('trust proxy', 1); // Trust first proxy (Render uses one proxy)
+app.options('*', cors(corsOptions)); // Pre-flight request for all routes
 app.use(express.json())
 
 
@@ -48,7 +66,7 @@ app.set('io', io);
 const sendMessageRoute = require('./routes/sendMessage')(io)
 
 // Routes
-app.use('/api/auth', limiter)
+app.use('/api/auth/login', limiter)
 app.use("/api/auth", route);
 app.use('/api', dashboardroute)
 app.use('/api/chatroom', chatRoomroute)
