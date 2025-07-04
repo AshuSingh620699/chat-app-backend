@@ -13,6 +13,7 @@ const chatRoomroute = require('./routes/chatRoom') // ChatRoom Route
 const messageRoute = require('./routes/fetchmessage')   // fetching messages
 const userimageroute = require('./routes/user')
 const Message = require('./models/Message')
+const uploadFileRoute = require('./routes/uploadFile.js')
 require("dotenv").config()
 const User = require('./models/User.js') // Import User model
 const app = express()
@@ -58,6 +59,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/search', search);
 app.use('/api/profile', updateprofileroute)
 app.use('/api/user', userimageroute)
+app.use('/api/chat', uploadFileRoute)
 
 
 // Root

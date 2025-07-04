@@ -13,7 +13,17 @@ const messageSchema = new moongose.Schema({
     },
     content:{
         type: String,
-        required: true 
+        required: false,
+        default: ''
+    },
+    file:{
+        url: {
+            type: String,
+            required: false
+        },
+        public_id:String,
+        fileType: String,
+        fileName: String,
     },
     timestamp:{
         type: Date,

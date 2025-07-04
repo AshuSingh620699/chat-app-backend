@@ -39,6 +39,7 @@ module.exports = (io) => {
                     senderId,
                     receiverId,
                     content: savedMessage.content,
+                    file: savedMessage.file || null, // Handle file if present
                     timestamp: savedMessage.timestamp
                 });
             }
