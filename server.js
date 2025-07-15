@@ -10,6 +10,7 @@ const updateprofileroute = require('./routes/profile')
 const route = require('./routes/auth')  // Authentication Route
 const dashboardroute = require('./routes/dashboard') // Dashboard Route
 const chatRoomroute = require('./routes/chatRoom') // ChatRoom Route
+const callRoute = require('./routes/call.js')
 const messageRoute = require('./routes/fetchmessage')   // fetching messages
 const userimageroute = require('./routes/user')
 const Message = require('./models/Message')
@@ -18,8 +19,8 @@ const User = require('./models/User.js') // Import User model
 const app = express()
 
 app.use((req, res, next) => {
-  console.log('Detected IP:', req.ip);
-  next();
+    console.log('Detected IP:', req.ip);
+    next();
 });
 
 const port = 5050;
@@ -27,10 +28,10 @@ const Server = http.createServer(app)
 
 // ✅ Updated CORS options (support both local + deployed frontend)
 const corsOptions = {
-  origin: ['https://talkshare.netlify.app', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+    origin: ['https://talkshare.netlify.app', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 const io = socket(Server, {
@@ -76,6 +77,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/search', search);
 app.use('/api/profile', updateprofileroute)
 app.use('/api/user', userimageroute)
+app.use('/api/call', callRoute)
 
 
 // Root
@@ -91,6 +93,12 @@ app.get('/', (req, res) => {
 //   "user123": "socketId_1",
 //   "user456": "socketId_2"
 // };
+
+
+// ✅ Simple ping route to keep Render backend awake
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong 🏓');
+});
 
 
 // Socket.IO Handling
@@ -217,6 +225,60 @@ io.on('connection', (socket) => {
             console.error('Error marking messages as seen:', err.message);
         }
     })
+    socket.on('start-call', async ({ to, from, callType}) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            const caller = await User.findById(from);
+            console.log(`User ${from} is starting a ${callType} call to ${to}`);
+            io.to(receiverSocketId).emit('incoming-call', {to, from, callType, username: caller.username, profileImage: caller.profileImage });
+        }
+    })
+
+    socket.on('accept-call', async ({ to, from, callType }) => {
+        
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            const acceptor = await User.findById(from);
+            io.to(receiverSocketId).emit('call-accepted', { from, callType, username: acceptor.username, profileImage: acceptor.profileImage });
+        }
+    })
+
+    socket.on('reject-call', ({ to, from, callType }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('call-rejected', { from, callType });
+        }
+    });
+    socket.on('end-call', ({ to, from, callType }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('call-ended', { from, callType });
+        }
+    });
+
+    // WebRTC Voice Call Signaling
+
+    socket.on('voice-offer', ({ to, from, offer }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('voice-offer', { from, offer });
+        }
+    });
+
+    socket.on('voice-answer', ({ to, from, answer }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('voice-answer', { from, answer });
+        }
+    });
+
+    socket.on('voice-candidate', ({ to, from, candidate }) => {
+        const receiverSocketId = userSocketMap[to];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('voice-candidate', { from, candidate });
+        }
+    });
+
 });
 
 
