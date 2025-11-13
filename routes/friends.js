@@ -44,6 +44,7 @@ router.post('/accept/:senderId', verifytoken, async (req, res) => {
     try {
         const receiver = await User.findById(receiverId);
         const sender = await User.findById(senderId);
+        console.log(receiver, sender);
 
         if (!receiver.receivedRequests.includes(senderId))
             return res.status(400).json({ message: 'No such friend request found' });
